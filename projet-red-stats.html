@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROJET RED — Registre des séances</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#101013;
+  --panel:#17171c;
+  --panel2:#1d1d24;
+  --line:#26262e;
+  --ink:#e8e6e1;
+  --dim:#8a8894;
+  --faint:#55545e;
+  --red:#c4392f;
+  --red-soft:#3a1815;
+  --amber:#c9922e;
+  --amber-soft:#332711;
+  --green:#4c9a6a;
+  --green-soft:#14281d;
+  --blue:#5b8dbf;
+  --blue-soft:#16222e;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --sans:'Inter',system-ui,sans-serif;
+  --disp:'Bebas Neue',Impact,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;min-height:100vh}
+::selection{background:var(--red);color:#fff}
+
+/* ---------- Header ---------- */
+header{border-bottom:1px solid var(--line);padding:28px 24px 22px;position:relative;overflow:hidden}
+header::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 18px,rgba(196,57,47,.04) 18px 36px);pointer-events:none}
+.h-wrap{max-width:1100px;margin:0 auto;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;position:relative}
+.logo{font-family:var(--disp);font-size:52px;letter-spacing:.04em;line-height:.9;color:var(--ink)}
+.logo em{font-style:normal;color:var(--red)}
+.h-meta{font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.12em;padding-bottom:6px}
+.h-meta b{color:var(--ink);font-weight:500}
+.rec{display:inline-flex;align-items:center;gap:6px;margin-left:14px}
+.rec::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--red);animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+@media (prefers-reduced-motion:reduce){.rec::before{animation:none}}
+
+/* ---------- Nav ---------- */
+nav{border-bottom:1px solid var(--line);background:var(--panel)}
+.n-wrap{max-width:1100px;margin:0 auto;display:flex;gap:0;overflow-x:auto}
+.n-wrap button{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;background:none;border:none;border-right:1px solid var(--line);color:var(--dim);padding:13px 22px;cursor:pointer;white-space:nowrap}
+.n-wrap button:hover{color:var(--ink)}
+.n-wrap button.on{color:var(--ink);background:var(--bg);box-shadow:inset 0 -2px 0 var(--red)}
+.n-wrap button:focus-visible{outline:2px solid var(--red);outline-offset:-2px}
+
+main{max-width:1100px;margin:0 auto;padding:32px 24px 80px}
+.view{display:none}
+.view.on{display:block}
+
+/* ---------- Shared ---------- */
+.sect{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:var(--faint);margin:34px 0 14px;display:flex;align-items:center;gap:10px}
+.sect::after{content:"";flex:1;height:1px;background:var(--line)}
+.sect:first-child{margin-top:0}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line)}
+.kpi{background:var(--panel);padding:16px 18px}
+.kpi .n{font-family:var(--disp);font-size:38px;line-height:1;color:var(--ink)}
+.kpi .n.red{color:var(--red)} .kpi .n.grn{color:var(--green)} .kpi .n.amb{color:var(--amber)}
+.kpi .l{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-top:6px}
+
+/* strip of 10 rooms */
+.strip{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin:6px 0 2px}
+.cell{aspect-ratio:1.15/1;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:var(--mono);background:var(--panel2);min-width:0}
+.cell .num{font-size:10px;color:var(--faint)}
+.cell .st{font-size:13px}
+.cell.ok{border-color:rgba(76,154,106,.5);background:var(--green-soft)}
+.cell.ok .st{color:var(--green)}
+.cell.bug{border-color:rgba(196,57,47,.6);background:var(--red-soft)}
+.cell.bug .st{color:var(--red)}
+.cell.warn{border-color:rgba(201,146,46,.5);background:var(--amber-soft)}
+.cell.warn .st{color:var(--amber)}
+.cell.na{opacity:.4}
+.strip-legend{display:flex;gap:16px;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:8px;flex-wrap:wrap}
+.strip-legend span::before{content:"■ ";font-size:11px}
+.lg-ok::before{color:var(--green)} .lg-bug::before{color:var(--red)} .lg-warn::before{color:var(--amber)}
+
+/* session report card */
+.report{border:1px solid var(--line);background:var(--panel);margin-bottom:18px}
+.r-head{display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;flex-wrap:wrap;border-left:3px solid var(--red)}
+.r-head:hover{background:var(--panel2)}
+.r-id{font-family:var(--disp);font-size:26px;color:var(--red);letter-spacing:.05em;min-width:56px}
+.r-title{font-weight:600;font-size:15px}
+.r-sub{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.r-tags{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:10px;padding:3px 8px;border:1px solid var(--line);color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
+.tag.death{border-color:rgba(196,57,47,.5);color:var(--red)}
+.tag.clean{border-color:rgba(76,154,106,.45);color:var(--green)}
+.r-body{display:none;border-top:1px solid var(--line);padding:18px}
+.report.open .r-body{display:block}
+.r-caret{font-family:var(--mono);color:var(--faint);font-size:12px;transition:transform .15s}
+.report.open .r-caret{transform:rotate(90deg)}
+
+.ppl{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.p-chip{font-family:var(--mono);font-size:11px;padding:5px 10px;background:var(--panel2);border:1px solid var(--line);color:var(--ink)}
+.p-chip small{color:var(--dim)}
+.p-chip.dead{border-color:rgba(196,57,47,.5);text-decoration:line-through;text-decoration-color:var(--red)}
+
+table.ep{width:100%;border-collapse:collapse;font-size:13px}
+table.ep th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--faint);text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+table.ep td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;color:var(--dim)}
+table.ep td:first-child{font-family:var(--mono);color:var(--ink);white-space:nowrap;width:70px}
+table.ep td:nth-child(2){font-family:var(--mono);white-space:nowrap;width:90px;color:var(--ink)}
+table.ep tr:last-child td{border-bottom:none}
+.fb{margin-top:14px;padding:12px 14px;background:var(--panel2);border-left:3px solid var(--green);font-size:13px;color:var(--dim)}
+.fb b{color:var(--ink);font-weight:600}
+
+/* status board */
+.board{display:flex;flex-direction:column;gap:8px}
+.b-row{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:center;border:1px solid var(--line);background:var(--panel);padding:12px 16px}
+.b-row .en{font-family:var(--disp);font-size:22px;color:var(--dim);letter-spacing:.05em}
+.b-row.st-bug{border-left:3px solid var(--red)} .b-row.st-bug .en{color:var(--red)}
+.b-row.st-ok{border-left:3px solid var(--green)}
+.b-row.st-int{border-left:3px solid var(--faint)}
+.b-row .tx{font-size:13px;color:var(--dim)}
+.b-row .tx b{color:var(--ink);font-weight:600}
+.pill{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;padding:4px 10px;border:1px solid var(--line);white-space:nowrap}
+.pill.ok{color:var(--green);border-color:rgba(76,154,106,.45)}
+.pill.bug{color:var(--red);border-color:rgba(196,57,47,.55)}
+.pill.int{color:var(--dim)}
+
+/* ---------- Form ---------- */
+.form-intro{font-size:13px;color:var(--dim);max-width:640px;margin-bottom:24px}
+fieldset{border:1px solid var(--line);background:var(--panel);padding:18px;margin-bottom:16px}
+legend{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--red);padding:0 10px;font-weight:500}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+.frow.one{grid-template-columns:1fr}
+@media(max-width:640px){.frow{grid-template-columns:1fr}}
+label{display:block;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:5px}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);font-family:var(--sans);font-size:13px;padding:9px 11px;border-radius:0}
+textarea{min-height:60px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--red)}
+.hint{font-size:11px;color:var(--faint);margin-top:4px;font-family:var(--mono)}
+.p-row{display:grid;grid-template-columns:1fr 150px 110px 36px;gap:8px;margin-bottom:8px;align-items:center}
+@media(max-width:640px){.p-row{grid-template-columns:1fr 1fr}}
+.btn{font-family:var(--mono);font-size:12px;text-transform:uppercase;letter-spacing:.1em;background:var(--red);color:#fff;border:none;padding:12px 26px;cursor:pointer}
+.btn:hover{background:#a92e26}
+.btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.btn.ghost{background:none;border:1px solid var(--line);color:var(--dim);padding:8px 14px;font-size:11px}
+.btn.ghost:hover{color:var(--ink);border-color:var(--dim)}
+.btn.del{background:none;border:1px solid var(--line);color:var(--red);padding:8px 0;font-size:14px;width:36px}
+.form-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.saved-msg{font-family:var(--mono);font-size:12px;color:var(--green);display:none}
+.warn-box{border:1px solid rgba(201,146,46,.4);background:var(--amber-soft);padding:12px 14px;font-size:12px;color:var(--amber);margin-bottom:20px;font-family:var(--mono)}
+.io{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px;padding-top:18px;border-top:1px solid var(--line)}
+
+footer{border-top:1px solid var(--line);padding:18px 24px;font-family:var(--mono);font-size:10px;color:var(--faint);text-transform:uppercase;letter-spacing:.12em;text-align:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="h-wrap">
+    <div class="logo">PROJET <em>RED</em></div>
+    <div class="h-meta">Registre des séances de test <b id="hCount">· 4 sessions archivées</b><span class="rec">enregistrement</span></div>
+  </div>
+</header>
+
+<nav>
+  <div class="n-wrap" role="tablist">
+    <button class="on" data-v="overview">Vue d'ensemble</button>
+    <button data-v="sessions">Rapports de séance</button>
+    <button data-v="status">Statut des épreuves</button>
+    <button data-v="add">+ Ajouter une séance</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<div class="view on" id="v-overview">
+  <div class="sect">Chiffres globaux</div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="sect">Plan du complexe — état des 10 épreuves</div>
+  <div class="strip" id="globalStrip"></div>
+  <div class="strip-legend">
+    <span class="lg-ok">Validée</span>
+    <span class="lg-bug">Bug ouvert</span>
+    <span class="lg-warn">Intentionnel / à observer</span>
+  </div>
+
+  <div class="sect">Patterns confirmés sur l'ensemble des groupes</div>
+  <div class="board" id="patterns"></div>
+</div>
+
+<!-- ============ SESSIONS ============ -->
+<div class="view" id="v-sessions">
+  <div class="sect">Rapports archivés</div>
+  <div id="reports"></div>
+</div>
+
+<!-- ============ STATUS ============ -->
+<div class="view" id="v-status">
+  <div class="sect">Décisions de design par épreuve</div>
+  <div class="board" id="statusBoard"></div>
+</div>
+
+<!-- ============ ADD ============ -->
+<div class="view" id="v-add">
+  <div class="sect">Nouvelle séance</div>
+  <p class="form-intro">Remplis les infos de la session — tout ce qui n'est pas rempli sera simplement noté "non documenté". La séance s'ajoute aux rapports et aux stats globales.</p>
+  <div class="warn-box">⚠ Les données ajoutées vivent dans la page ouverte. Avant de fermer, utilise « Exporter les données » (en bas) pour sauvegarder un fichier JSON, ré-importable à la prochaine ouverture.</div>
+
+  <form id="addForm" onsubmit="return false;">
+    <fieldset>
+      <legend>Session</legend>
+      <div class="frow">
+        <div><label for="fGroupe">Nom du groupe</label><input type="text" id="fGroupe" placeholder="ex : groupe 5"></div>
+        <div><label for="fDate">Date / repère</label><input type="text" id="fDate" placeholder="ex : 12 juillet"></div>
+      </div>
+      <div class="frow one">
+        <div><label for="fDuree">Durée totale (minutes)</label><input type="number" id="fDuree" min="0" placeholder="ex : 120"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Participants</legend>
+      <div id="pList"></div>
+      <button class="btn ghost" type="button" onclick="addPRow()">+ Ajouter un participant</button>
+      <p class="hint">Type « Pokémon » pour les compagnons (Musteboué, Gobou…)</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 1 — Réveil / mot miroir</legend>
+      <div class="frow">
+        <div><label for="e1t">Temps (minutes)</label><input type="number" id="e1t" min="0" placeholder="ex : 20"></div>
+        <div><label for="e1m">Comment le mot a été trouvé ?</label>
+          <select id="e1m">
+            <option value="">—</option>
+            <option>Trouvé dans la salle (spontané)</option>
+            <option>Trouvé dans les règles</option>
+            <option>Indice verbal donné</option>
+            <option>Non trouvé</option>
+          </select>
+        </div>
+      </div>
+      <div class="frow one"><div><label for="e1n">Notes</label><input type="text" id="e1n" placeholder="qui a trouvé, réactions…"></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 2 — Vote</legend>
+      <div class="frow">
+        <div><label for="e2v">Nombre de tours de vote</label><input type="number" id="e2v" min="1" placeholder="ex : 2"></div>
+        <div><label for="e2d">Personne désignée</label><input type="text" id="e2d" placeholder="ex : Kaelen"></div>
+      </div>
+      <div class="frow one"><div><label for="e2n">Notes</label><input type="text" id="e2n" placeholder="détail des tours…"></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 3 — Repas / pause</legend>
+      <div class="frow">
+        <div><label for="e3m">Ont-ils mangé ?</label>
+          <select id="e3m"><option value="">—</option><option>Oui</option><option>Non</option></select>
+        </div>
+        <div><label for="e3t">Temps (minutes)</label><input type="number" id="e3t" min="0" placeholder="ex : 5"></div>
+      </div>
+      <div class="frow one"><div><label for="e3n">Notes / lecture du groupe</label><input type="text" id="e3n" placeholder="ex : croyaient à une roulette russe empoisonnée"></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 4 — Tableaux (échec intentionnel)</legend>
+      <div class="frow">
+        <div><label for="e4f">Tableaux trouvés (sur 6)</label><input type="number" id="e4f" min="0" max="6" placeholder="ex : 3"></div>
+        <div><label for="e4t">Temps (minutes)</label><input type="number" id="e4t" min="0" placeholder="ex : 30"></div>
+      </div>
+      <div class="frow one"><div><label for="e4n">Notes</label><input type="text" id="e4n" placeholder="ex : jamais plus de 2 en même temps"></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 5 — Choix des box</legend>
+      <div class="frow">
+        <div><label for="e5m">Nombre de morts</label><input type="number" id="e5m" min="0" placeholder="ex : 0"></div>
+        <div><label for="e5q">Qui est mort + choix fatal</label><input type="text" id="e5q" placeholder="ex : Jaagar (corde), Gobou (citrouille)"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 6 — Salle machines / stress</legend>
+      <div class="frow">
+        <div><label for="e6s">Stress observé ?</label>
+          <select id="e6s"><option value="">—</option><option>Oui</option><option>Partiel</option><option>Non</option></select>
+        </div>
+        <div><label for="e6t">Temps (minutes)</label><input type="number" id="e6t" min="0" placeholder="ex : 5"></div>
+      </div>
+      <div class="frow one"><div><label for="e6n">Notes</label><input type="text" id="e6n" placeholder="ce qu'ils ont tenté…"></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 7 — Chaise de torture</legend>
+      <div class="frow">
+        <div><label for="e7v">Victime (sur la chaise)</label><input type="text" id="e7v" placeholder="ex : Kaelen"></div>
+        <div><label for="e7r">Réactions des tortionnaires</label><input type="text" id="e7r" placeholder="ex : Tyler froid, Vincent à contrecœur"></div>
+      </div>
+      <div class="frow one"><div><label for="e7n">Notes</label><input type="text" id="e7n" placeholder="improvisation, choc, vomissements…"></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 8 — Le bouton</legend>
+      <div class="frow">
+        <div><label for="e8a">Combien ont appuyé ?</label><input type="text" id="e8a" placeholder="ex : 0/2"></div>
+        <div><label for="e8n">Notes</label><input type="text" id="e8n" placeholder="hésitations…"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 9 — Dilemmes</legend>
+      <div class="frow one"><div><label for="e9d">Dilemmes + choix faits (ou skippée)</label><textarea id="e9d" placeholder="ex : Jaagar « perdre un bras ou Gobou 2 pattes » → perd un bras"></textarea></div></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Épreuve 10 — Labyrinthe</legend>
+      <div class="frow">
+        <div><label for="e10t">Temps de sortie</label><input type="text" id="e10t" placeholder="ex : 5 à 15 min selon joueur"></div>
+        <div><label for="e10n">Notes</label><input type="text" id="e10n" placeholder="ordre de sortie…"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Retour joueurs</legend>
+      <div class="frow one"><div><label for="fRetour">Point de vue joueurs après la session</label><textarea id="fRetour" placeholder="stress, fluidité, ce qu'ils ont aimé…"></textarea></div></div>
+    </fieldset>
+
+    <div class="form-actions">
+      <button class="btn" type="button" onclick="submitSession()">Enregistrer la séance</button>
+      <span class="saved-msg" id="savedMsg">✓ Séance ajoutée au registre</span>
+    </div>
+  </form>
+
+  <div class="io">
+    <button class="btn ghost" type="button" onclick="exportJSON()">Exporter les données (JSON)</button>
+    <label class="btn ghost" style="cursor:pointer;display:inline-block">Importer un JSON<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+  </div>
+</div>
+
+</main>
+<footer>Projet RED — registre interne · document de travail</footer>
+
+<script>
+/* ================= DATA ================= */
+let DATA = {
+  sessions: [
+    {
+      groupe:"Ludivine & co", date:"Séance 1 · bêta", duree:null,
+      participants:[
+        {nom:"Ludivine",role:"Protagoniste",statut:"vivante"},
+        {nom:"Flous",role:"Petit ami · commissaire",statut:"vivant"},
+        {nom:"Pauline",role:"Meilleure amie",statut:"morte E5"},
+        {nom:"Drevor",role:"Cousin",statut:"mort E5"},
+        {nom:"Musteboué",role:"Pokémon",statut:"—"}
+      ],
+      ep:{
+        1:{t:"20 min",r:"Drevor trouve « miroir » dans les règles."},
+        2:{t:"3 votes",r:"Flous élu au 3e tour (Pauline puis Drevor votés en alternative)."},
+        3:{t:"—",r:"Oubli de la salle 2, décision de manger."},
+        4:{t:"30 min",r:"Flous au centre : 4/6 mots (œil, connaissance, nourrissez, mort)."},
+        5:{t:"2 morts",r:"Pauline (corde) et Drevor (cadeau) meurent. Ludivine seule."},
+        6:{t:"—",r:"Non atteinte — fin de la bêta."},
+        7:{t:"—",r:"Non testée."},8:{t:"—",r:"Non testée."},9:{t:"—",r:"Non testée."},10:{t:"—",r:"Non testée."}
+      },
+      retour:null, morts:2
+    },
+    {
+      groupe:"Tadao & co", date:"Séance 2 · 2h00", duree:120,
+      participants:[
+        {nom:"Tadao",role:"Ami de Tony",statut:"mutilé E9 (bras + œil)"},
+        {nom:"Tony Schwaps",role:"Ami de Tadao",statut:"vivant"},
+        {nom:"Péricles",role:"Inconnu des autres",statut:"torturé E7"},
+        {nom:"Yuuki",role:"Inconnue des autres",statut:"vivante"}
+      ],
+      ep:{
+        1:{t:"20 min",r:"Tony trouve « miroir » dans les règles."},
+        2:{t:"2 votes",r:"Péricles élu au 2e tour."},
+        3:{t:"5 min",r:"Passage rapide."},
+        4:{t:"30 min",r:"2/6 mots trouvés seulement."},
+        5:{t:"0 mort",r:"Tout le monde survit."},
+        6:{t:"5 min",r:"Salle vide — attente sans rien (avant aménagement)."},
+        7:{t:"~12 min",r:"Péricles torturé. Tadao/Tony obéissent avec enthousiasme. Yuuki improvise : eau sur le panel électrique → électrocutions aléatoires."},
+        8:{t:"2/4",r:"Tadao et Tony appuient, Yuuki non."},
+        9:{t:"—",r:"Yuuki spectatrice. Tadao : perd un bras (protège Tony). Tony : fait perdre un œil à Tadao."},
+        10:{t:"~15 min",r:"Yuuki sort en 1re, Tadao +5 min, Tony +10 min."}
+      },
+      retour:null, morts:0
+    },
+    {
+      groupe:"Byrion & co", date:"Séance 3", duree:null,
+      participants:[
+        {nom:"Byrion",role:"Dresseur",statut:"vivant"},
+        {nom:"Alex Delacroix",role:"Dresseur",statut:"vivant"},
+        {nom:"Yummi",role:"Dresseur",statut:"vivant"},
+        {nom:"Estra",role:"Team Rocket",statut:"vivante"},
+        {nom:"Kaelen",role:"Veldranien",statut:"torturé E7"},
+        {nom:"Mistigrix",role:"Pokémon",statut:"—"}
+      ],
+      ep:{
+        1:{t:"23 min",r:"Découverte du complexe — groupe plus grand."},
+        2:{t:"2 votes",r:"Kaelen élu au 2e tour."},
+        3:{t:"~5 min",r:"Ils mangent pendant que Kaelen se fait soigner."},
+        4:{t:"30 min",r:"3/6 tableaux trouvés — échec intentionnel."},
+        5:{t:"0 mort",r:"5 personnes choisissent leur box, aucun mort."},
+        6:{t:"5 min",r:"Salle aménagée (machines/ordis) : plein de tentatives puis ouverture S7. Fix validé."},
+        7:{t:"~15 min",r:"Kaelen sur la chaise, toutes les tortures prodiguées. 3 dresseurs choqués/vomissent. Estra (TR) exécute froidement 1/3 torture."},
+        8:{t:"0/6",r:"Personne n'appuie."},
+        9:{t:"skippée",r:"Skippée car personne n'a appuyé en E8 — réaction en chaîne validée."},
+        10:{t:"5–15 min",r:"« Temps parfait », différent pour chaque joueur."}
+      },
+      retour:"Stress présent, avancée fluide, événement apprécié.", morts:0
+    },
+    {
+      groupe:"Tyler & co", date:"Séance 4 · « le plus mauvais »", duree:null,
+      participants:[
+        {nom:"Tyler Brook",role:"—",statut:"vivant"},
+        {nom:"Jaagar",role:"Dresseur de Gobou",statut:"sorti du complexe E5 (gaz) · perd un bras E9"},
+        {nom:"Gobou",role:"Pokémon de Jaagar",statut:"sorti du complexe E5 (gaz) · sauvé E9"},
+        {nom:"Vincent Baobab",role:"—",statut:"vivant"},
+        {nom:"Bartholomeo",role:"—",statut:"vivant"}
+      ],
+      ep:{
+        1:{t:"25 min",r:"Tyler trouve avec l'indice verbal « le mot est dans les règles »."},
+        2:{t:"3 votes",r:"V1 : « on souhaite continuer ». V2 : 2 sélectionnés. V3 : Vincent Baobab."},
+        3:{t:"—",r:"Ils mangent en pensant que c'est une roulette russe empoisonnée."},
+        4:{t:"~30 min",r:"4/6 tableaux, mais jamais plus de 2 en même temps."},
+        5:{t:"2 sortis",r:"Jaagar (corde) et Gobou (citrouille) gazés → le gaz ne tue pas, ils sont sortis du complexe."},
+        6:{t:"5 min",r:"Stress des 2 membres présents dans la salle."},
+        7:{t:"—",r:"Tyler torture sans état d'âme. Vincent le fait à contrecœur."},
+        8:{t:"0/2",r:"Les deux présents n'appuient pas."},
+        9:{t:"—",r:"Jaagar + Gobou (sortis en E5) dans la salle. Dilemme : « Jaagar perd un bras ou Gobou 2 pattes » → Jaagar perd un bras."},
+        10:{t:"rapide",r:"Sortie assez rapide — validé, pas de modification."}
+      },
+      retour:null, morts:0
+    }
+  ],
+  status: [
+    {e:1,st:"bug",label:"Bug ouvert",tx:"<b>4/4 groupes trouvent « miroir » dans les règles, jamais dans la salle.</b> Indice verbal nécessaire en S4. Seule correction restante : intégrer l'indice dans l'environnement."},
+    {e:2,st:"int",label:"Intentionnel",tx:"<b>Jamais d'unanimité au 1er tour</b> (3·2·2·3 votes). La résistance du groupe fait partie de l'expérience."},
+    {e:3,st:"ok",label:"Validée",tx:"<b>Manger = pattern constant (3/4 groupes).</b> Lecture « roulette russe » du groupe 4 : la plus riche."},
+    {e:4,st:"int",label:"Échec voulu",tx:"<b>30 min stable, 2 à 4 tableaux/6.</b> L'échec partiel est le résultat souhaité — conception validée."},
+    {e:5,st:"ok",label:"Validée",tx:"<b>Le mauvais choix gaze le joueur → sortie du complexe (le gaz ne tue pas).</b> Résultats : 2 · 0 · 0 · 2 éliminés selon les groupes. Mécanique validée."},
+    {e:6,st:"ok",label:"Fix validé ×2",tx:"<b>Aménagement machines/stress confirmé</b> sur les séances 3 et 4. Timing 5 min tenu."},
+    {e:7,st:"ok",label:"Validée",tx:"<b>Dualité froide/choquée systématique.</b> Le lore (Team Rocket, personnalités) crée deux camps à chaque fois."},
+    {e:8,st:"ok",label:"Validée",tx:"<b>E7 inhibe E8 :</b> 2/4 → 0/6 → 0/2 appuis. Le conditionnement fonctionne."},
+    {e:9,st:"ok",label:"Validée",tx:"<b>Dilemmes riches</b> (bras/œil, joueur/Pokémon) + skip automatique si personne n'appuie en E8. Le spectateur passif renforce le RP."},
+    {e:10,st:"ok",label:"Validée",tx:"<b>Labyrinthe validé — aucune modification.</b> Les écarts de temps entre groupes sont normaux."}
+  ],
+  patterns: [
+    {n:"4/4",t:"Épreuve 1 jamais résolue spontanément",d:"Le mot « miroir » est systématiquement cherché dans les règles. Seul bug encore ouvert."},
+    {n:"4/4",t:"Minimum 2 tours de vote en épreuve 2",d:"Aucun groupe ne désigne quelqu'un au 1er tour."},
+    {n:"3/4",t:"Manger en épreuve 3",d:"Réflexe de groupe ancré. Groupe 4 : pris pour une roulette russe empoisonnée."},
+    {n:"3/3",t:"Dualité froide / choquée en épreuve 7",d:"À chaque séance testée, une partie torture froidement, l'autre est choquée."},
+    {n:"3/3",t:"La torture (E7) inhibe le bouton (E8)",d:"Appuis en chute : 2/4 → 0/6 → 0/2."},
+    {n:"2/2",t:"Fix épreuve 6 stable",d:"Stress et engagement présents depuis l'aménagement."}
+  ]
+};
+
+/* ================= RENDER ================= */
+const $ = id => document.getElementById(id);
+
+function totalMorts(){ return DATA.sessions.reduce((a,s)=>a+(s.morts||0),0); }
+function totalJoueurs(){ return DATA.sessions.reduce((a,s)=>a+s.participants.length,0); }
+
+function renderKPIs(){
+  const bugs = DATA.status.filter(s=>s.st==="bug").length;
+  $("kpis").innerHTML = `
+    <div class="kpi"><div class="n">${DATA.sessions.length}</div><div class="l">Séances</div></div>
+    <div class="kpi"><div class="n">${totalJoueurs()}</div><div class="l">Participants (+ Pokémon)</div></div>
+    <div class="kpi"><div class="n red">${totalMorts()}</div><div class="l">Morts cumulées</div></div>
+    <div class="kpi"><div class="n grn">${10-bugs-1}</div><div class="l">Épreuves validées</div></div>
+    <div class="kpi"><div class="n ${bugs? "red":"grn"}">${bugs}</div><div class="l">Bug ouvert</div></div>`;
+  $("hCount").textContent = `· ${DATA.sessions.length} sessions archivées`;
+}
+
+function renderStrip(){
+  $("globalStrip").innerHTML = DATA.status.map(s=>{
+    const cls = s.st==="bug"?"bug":(s.st==="int"?"warn":"ok");
+    const ic = s.st==="bug"?"✕":(s.st==="int"?"◈":"✓");
+    return `<div class="cell ${cls}" title="Épreuve ${s.e} — ${s.label}"><span class="num">E${s.e}</span><span class="st">${ic}</span></div>`;
+  }).join("");
+}
+
+function renderPatterns(){
+  $("patterns").innerHTML = DATA.patterns.map(p=>`
+    <div class="b-row st-int">
+      <div class="en">${p.n}</div>
+      <div class="tx"><b>${p.t}</b><br>${p.d}</div>
+      <span class="pill int">pattern</span>
+    </div>`).join("");
+}
+
+function renderStatus(){
+  $("statusBoard").innerHTML = DATA.status.map(s=>`
+    <div class="b-row st-${s.st}">
+      <div class="en">E${s.e}</div>
+      <div class="tx">${s.tx}</div>
+      <span class="pill ${s.st==="bug"?"bug":(s.st==="int"?"int":"ok")}">${s.label}</span>
+    </div>`).join("");
+}
+
+function renderReports(){
+  $("reports").innerHTML = DATA.sessions.map((s,i)=>{
+    const chips = s.participants.map(p=>{
+      const dead = /mort/i.test(p.statut||"");
+      return `<span class="p-chip ${dead?"dead":""}">${p.nom} <small>· ${p.role||"—"}${p.statut&&p.statut!=="—"?" · "+p.statut:""}</small></span>`;
+    }).join("");
+    const rows = Object.keys(s.ep).map(k=>`<tr><td>E${k}</td><td>${s.ep[k].t||"—"}</td><td>${s.ep[k].r||"non documenté"}</td></tr>`).join("");
+    return `
+    <div class="report" id="rep${i}">
+      <div class="r-head" onclick="document.getElementById('rep${i}').classList.toggle('open')">
+        <span class="r-id">S${i+1}</span>
+        <div><div class="r-title">${s.groupe}</div><div class="r-sub">${s.date}${s.duree?` · ${s.duree} min`:""}</div></div>
+        <div class="r-tags">
+          <span class="tag ${s.morts? "death":"clean"}">${s.morts||0} mort${(s.morts||0)>1?"s":""}</span>
+          <span class="tag">${s.participants.length} participants</span>
+        </div>
+        <span class="r-caret">▶</span>
+      </div>
+      <div class="r-body">
+        <div class="ppl">${chips}</div>
+        <table class="ep"><thead><tr><th>Épreuve</th><th>Résultat</th><th>Détail</th></tr></thead><tbody>${rows}</tbody></table>
+        ${s.retour?`<div class="fb"><b>Retour joueurs :</b> ${s.retour}</div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderAll(){ renderKPIs(); renderStrip(); renderPatterns(); renderStatus(); renderReports(); }
+
+/* ================= NAV ================= */
+document.querySelectorAll(".n-wrap button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll(".n-wrap button").forEach(x=>x.classList.remove("on"));
+    document.querySelectorAll(".view").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on");
+    $("v-"+b.dataset.v).classList.add("on");
+  });
+});
+
+/* ================= FORM ================= */
+function addPRow(nom="",role="",type="Joueur"){
+  const d = document.createElement("div");
+  d.className = "p-row";
+  d.innerHTML = `
+    <input type="text" placeholder="Nom" value="${nom}" class="pi-nom">
+    <input type="text" placeholder="Rôle / lore" value="${role}" class="pi-role">
+    <select class="pi-type"><option${type==="Joueur"?" selected":""}>Joueur</option><option${type==="Pokémon"?" selected":""}>Pokémon</option></select>
+    <button class="btn del" type="button" title="Retirer" onclick="this.parentNode.remove()">✕</button>`;
+  $("pList").appendChild(d);
+}
+addPRow(); addPRow(); addPRow(); addPRow();
+
+const val = id => { const v = $(id).value.trim(); return v===""?null:v; };
+
+function submitSession(){
+  const parts = [...document.querySelectorAll(".p-row")].map(r=>({
+    nom:r.querySelector(".pi-nom").value.trim(),
+    role:(r.querySelector(".pi-type").value==="Pokémon"?"Pokémon · ":"")+ (r.querySelector(".pi-role").value.trim()||"—"),
+    statut:"vivant"
+  })).filter(p=>p.nom);
+
+  if(!val("fGroupe") && parts.length===0){ alert("Renseigne au moins le nom du groupe ou un participant."); return; }
+
+  const morts = parseInt(val("e5m")||"0",10)||0;
+  const fmt=(t,suf)=> t?`${t}${suf||""}`:"—";
+
+  const s = {
+    groupe: val("fGroupe")||`Groupe ${DATA.sessions.length+1}`,
+    date: (val("fDate")||`Séance ${DATA.sessions.length+1}`) ,
+    duree: val("fDuree")?parseInt(val("fDuree"),10):null,
+    participants: parts.length?parts:[{nom:"(non renseigné)",role:"—",statut:"—"}],
+    ep:{
+      1:{t:fmt(val("e1t")," min"), r:[val("e1m"),val("e1n")].filter(Boolean).join(" — ")||"non documenté"},
+      2:{t:val("e2v")?`${val("e2v")} vote(s)`:"—", r:[val("e2d")?`Désigné : ${val("e2d")}`:null,val("e2n")].filter(Boolean).join(" — ")||"non documenté"},
+      3:{t:fmt(val("e3t")," min"), r:[val("e3m")?`Mangé : ${val("e3m")}`:null,val("e3n")].filter(Boolean).join(" — ")||"non documenté"},
+      4:{t:fmt(val("e4t")," min"), r:[val("e4f")!==null?`${val("e4f")}/6 tableaux`:null,val("e4n")].filter(Boolean).join(" — ")||"non documenté"},
+      5:{t:`${morts} mort${morts>1?"s":""}`, r:val("e5q")||"non documenté"},
+      6:{t:fmt(val("e6t")," min"), r:[val("e6s")?`Stress : ${val("e6s")}`:null,val("e6n")].filter(Boolean).join(" — ")||"non documenté"},
+      7:{t:"—", r:[val("e7v")?`Victime : ${val("e7v")}`:null,val("e7r"),val("e7n")].filter(Boolean).join(" — ")||"non documenté"},
+      8:{t:val("e8a")||"—", r:val("e8n")||"non documenté"},
+      9:{t:"—", r:val("e9d")||"non documenté"},
+      10:{t:val("e10t")||"—", r:val("e10n")||"non documenté"}
+    },
+    retour: val("fRetour"),
+    morts: morts
+  };
+
+  DATA.sessions.push(s);
+  renderAll();
+  $("addForm").querySelectorAll("input,textarea,select").forEach(el=>{ if(el.tagName==="SELECT")el.selectedIndex=0; else el.value=""; });
+  $("pList").innerHTML=""; addPRow(); addPRow(); addPRow(); addPRow();
+  const m=$("savedMsg"); m.style.display="inline"; setTimeout(()=>m.style.display="none",4000);
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+/* ================= IMPORT / EXPORT ================= */
+function exportJSON(){
+  const blob = new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "projet-red-donnees.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+function importJSON(ev){
+  const f = ev.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try{
+      const d = JSON.parse(rd.result);
+      if(d.sessions) DATA = d;
+      renderAll();
+    }catch(e){ alert("Fichier JSON invalide."); }
+  };
+  rd.readAsText(f);
+}
+
+renderAll();
+</script>
+</body>
+</html>
